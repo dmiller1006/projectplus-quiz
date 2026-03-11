@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Project+ Flashcards</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100dvh; overflow-x: hidden; }
+
+  /* -- Setup screen -- */
+  .screen { display: none; padding: 1rem; max-width: 480px; margin: 0 auto; }
+  .screen.active { display: block; }
+  h1 { font-size: 1.3rem; text-align: center; padding: 1rem 0 0.5rem; color: #94a3b8; }
+  h2 { font-size: 1rem; color: #64748b; margin: 1rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .cat-list { list-style: none; }
+  .cat-list li { padding: 0.7rem 0.8rem; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+  .cat-list li.selected { background: #1e3a5f; }
+  .cat-list li .name { flex: 1; }
+  .cat-list li .badge { font-size: 0.75rem; color: #64748b; }
+  .cat-list li .badge .flag { color: #f59e0b; margin-left: 4px; }
+
+  .mode-btn { display: block; width: 100%; padding: 0.8rem; margin: 0.4rem 0; border: 1px solid #334155; border-radius: 8px; background: #1e293b; color: #e2e8f0; font-size: 0.95rem; text-align: left; cursor: pointer; }
+  .mode-btn:active { background: #334155; }
+  .mode-btn.primary { background: #2563eb; border-color: #2563eb; text-align: center; font-weight: 600; }
+  .mode-btn.primary:active { background: #1d4ed8; }
+  .mode-btn.danger { color: #f87171; border-color: #7f1d1d; }
+  .mode-btn.danger:active { background: #7f1d1d; }
+
+  /* -- Quiz screen -- */
+  .progress-bar { height: 3px; background: #1e293b; border-radius: 2px; margin-bottom: 1rem; }
+  .progress-fill { height: 100%; background: #2563eb; border-radius: 2px; transition: width 0.3s; }
+  .counter { text-align: center; font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; }
+
+  .card { background: #1e293b; border-radius: 12px; min-height: 220px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; cursor: pointer; user-select: none; position: relative; transition: transform 0.15s; }
+  .card:active { transform: scale(0.98); }
+  .card .label { position: absolute; top: 0.75rem; left: 0.75rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; }
+  .card .flag-dot { position: absolute; top: 0.75rem; right: 0.75rem; font-size: 0.8rem; }
+  .card .text { font-size: 1.15rem; line-height: 1.5; }
+  .card.answer { background: #172554; }
+  .card.answer .text { font-size: 1rem; }
+
+  .hint { text-align: center; color: #475569; font-size: 0.75rem; margin-top: 0.6rem; }
+
+  .grade-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
+  .grade-btn { flex: 1; padding: 1rem; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  .grade-btn.wrong { background: #991b1b; color: #fecaca; }
+  .grade-btn.wrong:active { background: #7f1d1d; }
+  .grade-btn.right { background: #166534; color: #bbf7d0; }
+  .grade-btn.right:active { background: #14532d; }
+
+  /* -- Results screen -- */
+  .score { text-align: center; font-size: 2.5rem; font-weight: 700; padding: 1.5rem 0; }
+  .score .label { font-size: 0.85rem; color: #64748b; font-weight: 400; display: block; margin-top: 0.25rem; }
+  .missed-list { list-style: none; margin: 0.5rem 0 1.5rem; }
+  .missed-list li { padding: 0.5rem 0; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #fbbf24; }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup" class="screen active">
+  <h1>Project+ Flashcards</h1>
+  <h2>Categories</h2>
+  <ul id="catList" class="cat-list"></ul>
+  <div style="margin-top:1.2rem" id="modeSection"></div>
+  <label style="display:flex;align-items:center;gap:0.5rem;margin-top:1rem;color:#94a3b8;font-size:0.9rem;cursor:pointer;user-select:none"><input type="checkbox" id="chkShuffle" checked style="width:1.1rem;height:1.1rem;accent-color:#2563eb"> Shuffle cards</label>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="screen">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="counter" id="counter"></div>
+  <div class="card" id="card"><span class="label" id="cardLabel"></span><span class="flag-dot" id="flagDot"></span><span class="text" id="cardText"></span></div>
+  <div class="hint" id="hint">tap to flip</div>
+  <div class="grade-row" id="gradeRow" style="display:none">
+    <button class="grade-btn wrong" id="btnWrong">Flag</button>
+    <button class="grade-btn right" id="btnRight">Continue</button>
+  </div>
+  <div style="text-align:center;margin-top:1rem"><button class="mode-btn" id="btnQuit" style="max-width:160px;margin:0 auto;text-align:center;color:#f87171;border-color:#7f1d1d">Quit</button></div>
+</div>
+
+<!-- RESULTS -->
+<div id="results" class="screen">
+  <h1>Results</h1>
+  <div class="score" id="scoreText"></div>
+  <div id="missedSection"></div>
+  <button class="mode-btn primary" id="btnRestart" style="margin-top:1rem">Study Again</button>
+</div>
+
+<script>
+const CARDS = [{"category": "Security", "front": "Threat vs Control?", "back": "Threat = something that could cause harm. Control = measure put in place to reduce the threat.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Task Board / Kanban board?", "back": "Shows the status of each task in columns on a digital or physical board.", "flagged": false}, {"category": "Initiation", "front": "Communication channels formula?", "back": "n(n-1)/2 where n = number of people. E.g. 5 people = 10 channels.", "flagged": false}, {"category": "Estimating", "front": "Analogous estimating", "back": "Uses historical data from similar projects. Quick but least accurate.", "flagged": false}, {"category": "Estimating", "front": "Effort vs Duration vs Elapsed Time", "back": "Effort = hours/days of work required. Duration = takes into account resources allocated. Elapsed Time = amount of work done in a day or week.", "flagged": false}, {"category": "Agile", "front": "What is Planning Poker?", "back": "A popular method for assigning story points to user stories.", "flagged": false}, {"category": "Agile", "front": "What is an Epic?", "back": "A large chunk of work which is completed over multiple sprints.", "flagged": false}, {"category": "Resources & Compression", "front": "What is schedule compression?", "back": "Techniques for shortening schedule duration without reducing scope. Two methods: fast tracking and crashing.", "flagged": false}, {"category": "Risk", "front": "When does risk identification start?", "back": "High level in initiation, more detailed in planning, monitored throughout the project.", "flagged": false}, {"category": "Change Control", "front": "When does change control take place?", "back": "During the Executing project lifecycle phase.", "flagged": false}, {"category": "Execution", "front": "Confronting vs Compromising vs Smoothing?", "back": "Confronting = face the problem head-on, find root cause (best approach). Compromising = both parties give up something. Smoothing = minimize the conflict by emphasizing areas of agreement.", "flagged": false}, {"category": "Resources & Compression", "front": "Resource Smoothing", "back": "Delay activities only within available float. Critical path NOT affected.", "flagged": false}, {"category": "Cost Management", "front": "Management reserves \u2014 in or out of cost baseline?", "back": "NOT in the cost baseline. Cover unforeseen situations (unknown unknowns). Senior management authorizes spending.", "flagged": false}, {"category": "Estimating", "front": "What are the 4 estimating techniques?", "back": "Analogous (historical data, quick, least accurate), Parametric (cost/time per unit), Three-Point (O, M, P formula), Bottom-Up (every component totalled, most accurate, most time consuming)", "flagged": false}, {"category": "Resources & Compression", "front": "Fast Tracking", "back": "Overlap tasks on the critical path to shorten the schedule.", "flagged": false}, {"category": "Agile", "front": "What pace principle should agile teams follow?", "back": "Sustainable pace \u2014 the team should be able to maintain a constant pace indefinitely.", "flagged": false}, {"category": "IT Concepts", "front": "What is three-tier architecture?", "back": "Presentation tier (UI), Application/Logic tier (processing), Data tier (database).", "flagged": false}, {"category": "Dependencies", "front": "Finish to Finish (FF)", "back": "Successor finishes when predecessor finishes. E.g. rack won't be finished until the power supply is finished.", "flagged": false}, {"category": "Initiation", "front": "What is a RAM?", "back": "Responsibility Assignment Matrix \u2014 maps roles to tasks. RACI is a type of RAM (Responsible, Accountable, Consulted, Informed).", "flagged": false}, {"category": "Dependencies", "front": "Start to Finish (SF)", "back": "Successor finishes when predecessor starts. Rarely used.", "flagged": false}, {"category": "Scope", "front": "What is the WBS?", "back": "Work Breakdown Structure \u2014 hierarchy of deliverables and work packages. Waterfall decomposes scope statement into work packages.", "flagged": false}, {"category": "Agile", "front": "What is a story point?", "back": "An agile term \u2014 a relative unit of measure for estimating the effort required to implement a backlog item (user story).", "flagged": false}, {"category": "Cost Management", "front": "What is the cost baseline?", "back": "The approved version of the project budget. Can only be changed using formal change control procedures.", "flagged": false}, {"category": "Resources & Compression", "front": "Resource Levelling", "back": "Adjust the schedule according to resource availability. Critical path likely affected.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Decision Tree?", "back": "A map of possible outcomes of related choices. Uses EMV (probability x impact) to understand the cost of different decisions.", "flagged": false}, {"category": "Approaches", "front": "Balanced scorecard vs SWOT?", "back": "Balanced scorecard = measures organizational performance across 4 perspectives (financial, customer, internal process, learning/growth). SWOT = Strengths, Weaknesses, Opportunities, Threats.", "flagged": false}, {"category": "Dependencies", "front": "Mandatory dependency", "back": "Hard logic \u2014 must happen in sequence. E.g. roof goes on after walls are built.", "flagged": false}, {"category": "Resources & Compression", "front": "Crashing", "back": "Add more resources to tasks on the critical path to shorten the schedule.", "flagged": false}, {"category": "Initiation", "front": "What comes first \u2014 kickoff meeting or stakeholder interviews?", "back": "Kickoff meeting first, then stakeholder interviews.", "flagged": false}, {"category": "Risk", "front": "What does the Issue Log track?", "back": "Issue resolution: owner, priority, planned resolution, target date, status. Reassures stakeholders issues are being dealt with.", "flagged": false}, {"category": "Resources & Compression", "front": "What is float?", "back": "The amount of time a task can be delayed without delaying the project.", "flagged": false}, {"category": "Closing", "front": "What are the key closing activities?", "back": "Sponsor sign-off, release resources, close procurement contracts, celebrate/reward team, reconcile budget, archive documentation, prepare closeout report, present at closure meeting.", "flagged": false}, {"category": "Cost Management", "front": "Can the same estimating techniques be used for cost and duration?", "back": "Yes \u2014 analogous, parametric, three-point, and bottom-up work for both cost and duration estimates.", "flagged": false}, {"category": "Charts & Critical Path", "front": "What is a Gantt chart?", "back": "Represents the project schedule with bar widths representing the duration of tasks.", "flagged": false}, {"category": "Closing", "front": "What is project Addition/Integration?", "back": "Project activity gets absorbed into day-to-day operations. Addition = new business unit. Integration = merged with rest of the organization.", "flagged": false}, {"category": "Scope", "front": "What makes up the Scope Baseline?", "back": "Scope Statement + WBS + WBS Dictionary", "flagged": false}, {"category": "Cost Management", "front": "What does a cost estimate include?", "back": "The likely cost of ALL resources required to complete an activity \u2014 labour, materials, equipment, etc.", "flagged": false}, {"category": "Closing", "front": "Should closing steps be performed even if the project fails?", "back": "Yes \u2014 closing steps should be performed no matter what the ending.", "flagged": false}, {"category": "Estimating", "front": "What are contingency reserves / buffers?", "back": "Extra time built into activity estimates in case things don't go to plan. Cover known risks.", "flagged": false}, {"category": "Resources & Compression", "front": "Levelling vs Smoothing \u2014 what's the key difference?", "back": "Levelling CAN change the critical path. Smoothing CANNOT \u2014 it only uses available float.", "flagged": false}, {"category": "Dependencies", "front": "What are the 4 dependency types?", "back": "Mandatory (hard logic), Discretionary (preferred logic), External (outside team's control), Internal (within team's control)", "flagged": false}, {"category": "Closing", "front": "Verification vs Validation \u2014 what's the difference?", "back": "Verification = inspect product for correctness (comes first). Validation = customer formally accepts deliverables match agreed scope.", "flagged": false}, {"category": "Scope", "front": "What is the WBS Dictionary?", "back": "A supporting document providing more detail about each item in the WBS.", "flagged": false}, {"category": "Scope", "front": "What is a Requirements Traceability Matrix?", "back": "A document that tracks requirements gathered from stakeholders throughout the project.", "flagged": false}, {"category": "Agile", "front": "What is Fist of Five?", "back": "A voting technique to help the team come to a consensus.", "flagged": false}, {"category": "Resources & Compression", "front": "Resource Loading", "back": "The process of filling team members' available time with project tasks.", "flagged": false}, {"category": "Planning", "front": "What are baselines?", "back": "Fixed reference points for measuring progress. Examples: scope baseline, cost baseline, schedule baseline.", "flagged": false}, {"category": "Agile", "front": "What is Agile Release Planning?", "back": "Determines when features will be released to users.", "flagged": false}, {"category": "Tools & Charts", "front": "Burndown chart vs Burnup chart?", "back": "Burndown starts at maximum, tracks work/budget remaining (line goes down). Burnup starts from zero, plots work done or money spent (line goes up).", "flagged": false}, {"category": "Risk", "front": "What are the 4 negative risk responses?", "back": "Avoid (eliminate threat), Mitigate (reduce impact/chance), Transfer (move to third party, e.g. insurance), Accept (no action, low priority).", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Pareto Chart?", "back": "A sorted histogram with a cumulative Pareto line. Shows which defect to focus on fixing first.", "flagged": false}, {"category": "Dependencies", "front": "What are the 4 successor/predecessor relationship types?", "back": "Finish-to-Start (FS, most common), Start-to-Start (SS), Finish-to-Finish (FF), Start-to-Finish (SF, rarely used)", "flagged": false}, {"category": "Agile", "front": "Who defines the sprint goal during sprint planning?", "back": "The Scrum Team collaboratively (developers + PO + SM). The PO proposes what to achieve, but the whole team agrees on the goal.", "flagged": false}, {"category": "Risk", "front": "Qualitative vs Quantitative risk analysis?", "back": "Qualitative = assess risks by parameters (detectability, impact, etc.) to prioritize them. Quantitative = puts a dollar value or schedule delay on the risk, uses simulations (e.g. Monte Carlo).", "flagged": false}, {"category": "Risk", "front": "Scenario Analysis vs Situational Analysis?", "back": "Scenario Analysis = What-If analysis. Situational Analysis = analysis of current situation (e.g. SWOT).", "flagged": false}, {"category": "Discovery", "front": "Business case vs Project charter?", "back": "Business case = justifies WHY the project should be done. Charter = formally authorizes the project, names the PM. Charter drafted in discovery, approved in initiation.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Project Organizational Chart?", "back": "Shows the roles and reporting structure for the project teams.", "flagged": false}, {"category": "Closing", "front": "What is project Extinction?", "back": "All project activity ends due to either a successful outcome (handed to client) or unsuccessful outcome (failed to meet regulations).", "flagged": false}, {"category": "Agile", "front": "When is detailed scope defined in agile?", "back": "Only at the beginning of each iteration.", "flagged": false}, {"category": "Documents", "front": "Business Case vs Project Charter?", "back": "Business case justifies WHY the project should be done. Project charter formally authorizes the project and names the PM.", "flagged": false}, {"category": "Closing", "front": "What is project Starvation?", "back": "The project dies because it is deprived of resources.", "flagged": false}, {"category": "Agile", "front": "What is an MVP?", "back": "Minimum Viable Product \u2014 just enough working features to get feedback ASAP.", "flagged": false}, {"category": "Risk", "front": "What is Impact Analysis (risk scoring)?", "back": "Probability (0-1) x Impact (0-1) = risk score. Bigger score = more important risk.", "flagged": false}, {"category": "Charts & Critical Path", "front": "What is a milestone?", "back": "A task with 0 duration that marks a significant point in the schedule. Often depicted as a diamond on a Gantt chart.", "flagged": false}, {"category": "Discovery", "front": "Current state vs future state analysis reveals what?", "back": "Gaps \u2014 NOT risks. The difference between where you are and where you want to be.", "flagged": false}, {"category": "Agile", "front": "What is Refinement (Grooming)?", "back": "Keeping the product backlog up to date and relevant.", "flagged": false}, {"category": "Risk", "front": "What are the 4 positive risk responses?", "back": "Exploit (ensure opportunity happens), Enhance (increase impact/chance), Share (joint venture with third party), Accept (reward not worth pursuing).", "flagged": false}, {"category": "Risk", "front": "Contingency Plan vs Fallback Plan?", "back": "Contingency = planned response to identified risks. Fallback = Plan B if contingency doesn't work. Terms sometimes used interchangeably.", "flagged": false}, {"category": "Dependencies", "front": "External dependency", "back": "Outside the team's control. E.g. waiting for a permit to be issued.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Milestone Chart?", "back": "Marks significant points in the schedule. Useful overview for stakeholders.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Scatter Chart?", "back": "Shows if two variables are linked, which may indicate the cause of a problem.", "flagged": false}, {"category": "Estimating", "front": "Three-point estimating", "back": "Uses Optimistic, Most Likely, and Pessimistic values. Triangular: (O+M+P)/3. PERT/Beta: (O+4M+P)/6.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Velocity Chart?", "back": "Shows how much work has been delivered in each sprint. Team velocity = the average taken from this chart.", "flagged": false}, {"category": "Risk", "front": "Risk vs Issue \u2014 what's the difference?", "back": "Risk: hasn't happened, may not, can be positive or negative, use contingency plan, funded from contingency reserves. Issue: already happened, always negative, use workaround (root cause analysis), funded from management reserves.", "flagged": false}, {"category": "Documents", "front": "Issue Log vs Change Log?", "back": "Issue log tracks problems/concerns that need resolution. Change log tracks change requests and their status through change control.", "flagged": false}, {"category": "Approaches", "front": "Agile iteration length?", "back": "2-6 weeks.", "flagged": false}, {"category": "Dependencies", "front": "Internal dependency", "back": "Within the team's control. E.g. can't test it until another team member has written it.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Project Network Diagram?", "back": "Visualizes task relationships. Each node represents a task. Node size does NOT reflect duration.", "flagged": false}, {"category": "Charts & Critical Path", "front": "What is a PERT chart?", "back": "Precedence Diagramming Method (PDM). Visualizes activities and relationships in a network diagram. Durations are NOT represented by node size.", "flagged": false}, {"category": "Dependencies", "front": "Start to Start (SS)", "back": "Successor starts when predecessor starts. E.g. can only start buttering bread when you've started slicing it.", "flagged": false}, {"category": "IT Concepts", "front": "HLD vs LLD \u2014 when do they happen?", "back": "HLD (High-Level Design) = analysis phase. LLD (Low-Level Design) = design phase.", "flagged": false}, {"category": "Planning", "front": "What are subsidiary plans?", "back": "Plans within the project management plan: Change Management, Communications Management, Risk Management, and more.", "flagged": false}, {"category": "Planning", "front": "What is the project management plan?", "back": "The main output of planning activities. Defines how the project will be executed, monitored, and closed.", "flagged": false}, {"category": "Initiation", "front": "Kickoff meeting formality?", "back": "Can be formal or informal depending on the project and organization.", "flagged": false}, {"category": "Estimating", "front": "Parametric estimating", "back": "Uses cost/time per unit multiplied out. E.g. 1 chimney = 1 day, so 4 chimneys = 4 days.", "flagged": false}, {"category": "Security", "front": "What does end-of-life mean as a threat?", "back": "Software is still running but no longer receiving patches or updates. It's a threat because vulnerabilities won't be fixed.", "flagged": false}, {"category": "Change Control", "front": "What is the 12-step change control mnemonic?", "back": "CRaig Loves Pampering And Riding Donkeys, Ester Sometimes Understands It's Very Cold", "flagged": false}, {"category": "IT Concepts", "front": "Database vs EDRMS?", "back": "Database = structured data storage. EDRMS (Electronic Document and Records Management System) = manages documents and records.", "flagged": false}, {"category": "Change Control", "front": "How are scope changes handled in waterfall?", "back": "Only through formal change control procedures. Only approved changes are incorporated.", "flagged": false}, {"category": "Security", "front": "Trade secrets vs national security classifications?", "back": "Trade secrets = private business info (proprietary). National security = government classifications (confidential, secret, top secret).", "flagged": false}, {"category": "Cost Management", "front": "Contingency reserves \u2014 in or out of cost baseline?", "back": "IN the cost baseline. Cover known risks. PM authorizes spending.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Run Chart?", "back": "A line chart plotting data over time. Useful for looking at performance trends.", "flagged": false}, {"category": "Estimating", "front": "Work packages are further decomposed into what?", "back": "Activities", "flagged": false}, {"category": "Risk", "front": "What is SWOT analysis?", "back": "Strengths, Weaknesses, Opportunities, Threats. Useful for identifying risks. Also called situational analysis.", "flagged": false}, {"category": "Scope", "front": "How does MVP relate to the Triple Constraint?", "back": "Less scope delivered quickly and cheaply \u2014 aligns with agile's MVP approach.", "flagged": false}, {"category": "Scope", "front": "How do agile vs waterfall define units of work?", "back": "Agile uses the product backlog. Waterfall decomposes scope statement into work packages via WBS.", "flagged": false}, {"category": "Charts & Critical Path", "front": "What is the Critical Path?", "back": "The sequence of activities that takes the longest to complete. Determines minimum project duration. Zero float.", "flagged": false}, {"category": "Agile", "front": "Who decides HOW to do the work \u2014 PO or developers?", "back": "Developers decide the specific tasks for HOW to do the work. PO defines WHAT.", "flagged": false}, {"category": "Closing", "front": "What is a Sprint Retrospective?", "back": "Process-focused meeting with PO, Dev Team, and Scrum Master. Team reflects on how to improve and creates action items.", "flagged": false}, {"category": "Dependencies", "front": "Finish to Start (FS)", "back": "Successor starts when predecessor finishes. Most common relationship type.", "flagged": false}, {"category": "Execution", "front": "What are the 6 conflict resolution types?", "back": "Confronting (problem-solving, best), Compromising (both give up something), Smoothing (emphasize agreement, downplay differences), Forcing (win-lose, use authority), Avoiding (withdraw, postpone), Negotiating (bargaining for a solution).", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Control Chart?", "back": "Checks that data points fall within control limits. Used for quality control.", "flagged": false}, {"category": "Scope", "front": "What is the Triple Constraint (Iron Triangle)?", "back": "Cost (budget), Time (schedule), and Scope. Change one and the others must adjust, or quality suffers.", "flagged": false}, {"category": "Closing", "front": "What is the Transition Plan?", "back": "Provides everything the new owner needs to use and maintain the product: delivery date, knowledge transfer, documentation, training, assets, maintenance, warranty, support, ongoing costs.", "flagged": false}, {"category": "Agile", "front": "What 3 criteria must sprint user stories meet?", "back": "1) Support the sprint goal. 2) Clearly defined, sized, and prioritized. 3) Total takes into account the team's velocity.", "flagged": false}, {"category": "Tools & Charts", "front": "What is a Fishbone (Ishikawa) Diagram?", "back": "Used for cause and effect analysis.", "flagged": false}, {"category": "Risk", "front": "Identified risks vs unidentified risks?", "back": "Identified = known risks (known unknowns). Unidentified = unknown risks (unknown unknowns).", "flagged": false}, {"category": "Dependencies", "front": "Discretionary dependency", "back": "Preferred logic \u2014 best practice but could be reordered. E.g. plumbing first then electrics.", "flagged": false}, {"category": "Scope", "front": "What does the Scope Statement include?", "back": "Project/product descriptions, major deliverables, and exclusions. Approved version becomes part of scope baseline.", "flagged": false}, {"category": "Agile", "front": "What are user stories and where do they live?", "back": "Describe a feature from a business value perspective. Live on the product backlog (master story list).", "flagged": false}, {"category": "IT Concepts", "front": "Cloud vs on-prem change control difference?", "back": "Cloud = more frequent backups/changes, provider handles infrastructure. On-prem = you control backup frequency and change windows.", "flagged": false}, {"category": "Risk", "front": "What is the Risk Register?", "back": "Lists all identified risks with planned response, priority, and owner. Reviewed throughout the project.", "flagged": false}, {"category": "Estimating", "front": "Bottom-up estimating", "back": "Every single component calculated and totalled. Most accurate but most time consuming.", "flagged": false}, {"category": "Documents", "front": "SOW vs SLA?", "back": "SOW (Statement of Work) defines the work to be performed. SLA (Service Level Agreement) defines ongoing service expectations and metrics.", "flagged": false}, {"category": "Agile", "front": "How are changes managed in agile?", "back": "Changes are expected \u2014 managed by re-prioritizing items on the product backlog. No formal change control.", "flagged": false}, {"category": "Change Control", "front": "What is scope creep?", "back": "The uncontrolled expansion of scope without adjustments to time, cost, and resources.", "flagged": false}, {"category": "EVM & Formulas", "front": "Schedule Variance (SV) formula and what it means?", "back": "SV = EV - PV. Positive = ahead of schedule. Negative = behind. Zero = on pace. Trap: 'greater than zero' = AHEAD, not behind.", "flagged": false}, {"category": "EVM & Formulas", "front": "What are the 4 types of float?", "back": "Zero float = critical path task, no wiggle room. Free float = ES(next) - EF(current), can slip without affecting NEXT task. Total float = LF - EF (or LS - ES), can slip without affecting PROJECT end date. Negative float = Late Start < Early Start, already behind schedule.", "flagged": false}, {"category": "Procurement", "front": "RFx distinctions \u2014 RFI, RFP, RFQ, RFB?", "back": "RFI = exploratory, gathering info, no commitment. RFP = need a solution, vendor proposes approach, best value wins. RFQ = know what you want, just need pricing. RFB = clear specs, commodity items, lowest price wins. Order: RFI first (exploratory) then RFP/RFB/RFQ (soliciting).", "flagged": false}, {"category": "Procurement", "front": "Contract types \u2014 cost-plus, fixed-price, T&M, unit price?", "back": "Cost-plus = vendor paid costs + profit fee, flexible scope, risk of SCOPE CREEP. Fixed-price = set price/scope, risk on vendor. T&M = hours x rate + materials, fluid scope. Unit price = price per unit x quantity. Trap: 'scope creep risk' = cost-plus, NOT T&M.", "flagged": false}, {"category": "Execution", "front": "What is Organizational Change Management (OCM)?", "back": "The 'people side of change.' Helping USERS adjust to change \u2014 identifying impacted groups, training, documenting change for stability. NOT about budget changes, vendor issues, or sprint task changes.", "flagged": false}, {"category": "Scope", "front": "MECE vs 100% Rule in WBS design?", "back": "MECE = Mutually Exclusive, Collectively Exhaustive \u2014 no overlaps AND no gaps. 100% Rule = all project work is covered, no extra work added. They are DIFFERENT concepts. 'No overlaps + no gaps' = MECE.", "flagged": false}, {"category": "Estimating", "front": "Top-down estimating", "back": "Used early when info is limited. Start with total, break down into components. Benefits most from expert judgment. Trigger: 'limited info, early stages' = top-down.", "flagged": false}, {"category": "Tools & Charts", "front": "Burnup vs Burndown \u2014 which is fixed scope vs fixed timeline?", "back": "Burnup = fixed SCOPE, flexible timeline (line goes up toward total). Burndown = fixed TIMELINE, flexible scope (line goes down to zero). Memory: burnUP = scope is Up (fixed). Trigger: 'fixed scope, flexible timeline' = ALWAYS burnup.", "flagged": false}, {"category": "Agile", "front": "Velocity threshold for investigation?", "back": "25% or more change in velocity across sprints = investigate. NOT 10%.", "flagged": false}, {"category": "EVM & Formulas", "front": "ROI formula and terminology?", "back": "Financial Value = money in (revenue, savings). Net Profit = Financial Value - Project Cost. ROI = Net Profit / Project Cost x 100. E.g. $20k value, $11k cost = $9k profit = 81.8% ROI.", "flagged": false}, {"category": "Discovery", "front": "What is ESG?", "back": "Environmental = nature/planet. Social = people/employees (treating people well). Governance = how the COMPANY governs itself (policies, board, ethics). Trap: employee benefits = Social. Stakeholder engagement = Governance.", "flagged": false}, {"category": "Initiation", "front": "Org structures \u2014 Functional vs Matrix vs Projectized?", "back": "Functional = silos, functional manager has authority. Matrix = employees have TWO managers, work on MULTIPLE projects simultaneously. Projectized = PM has full authority, team dedicated. Spectrum: Functional \u2192 Weak Matrix \u2192 Strong Matrix \u2192 Projectized. 'Exclusively' = rules out Matrix.", "flagged": false}, {"category": "Initiation", "front": "PMO types \u2014 Supportive, Controlling, Directive?", "back": "Supportive = low authority, provides templates/guidance. Controlling = medium authority, enforces frameworks/compliance. Directive = high authority, directly manages projects. PMO is ALWAYS a stakeholder.", "flagged": false}, {"category": "Approaches", "front": "Iterative vs Incremental vs IID?", "back": "Iterative = build, review, improve (adapt/refine). No release until end. Incremental = build feature, release to production. IID = both together (iterative + incremental). Agile = IID.", "flagged": false}, {"category": "Execution", "front": "Tuckman Model \u2014 5 stages of team development?", "back": "Forming \u2192 Storming \u2192 Norming \u2192 Performing \u2192 Adjourning. Unstable teams cycle back (especially to storming). Changing members or priorities \u2192 reverts to storming.", "flagged": false}, {"category": "Security", "front": "Data Classification \u2014 PICR hierarchy?", "back": "Public (no restrictions) < Internal (anyone in company) < Confidential (authorized users, role-based) < Restricted (most sensitive, need-to-know). 'Private' = doesn't exist. 'Secret' falls under Restricted. Medical/financial records = Confidential.", "flagged": false}, {"category": "IT Concepts", "front": "What are NFRs (Non-Functional Requirements)?", "back": "HOW the system performs, not WHAT it does. The '-ilities': Usability, Maintainability, Scalability, Availability, Extensibility, Security, Portability, Compliance. Apply to ALL projects. Match keywords exactly: 'protected communication' = Security, 'regulatory' = Compliance.", "flagged": false}, {"category": "Initiation", "front": "Program vs Portfolio?", "back": "Program = group of RELATED projects managed together for benefits not available individually. Portfolio = ALL projects in an organization \u2014 do NOT need to be related.", "flagged": false}, {"category": "Planning", "front": "Communication plan components?", "back": "Includes: Goals, Outcomes, Channels, Artifacts. Does NOT include: Retrospectives (those are project review processes, not communication plan components).", "flagged": false}, {"category": "Planning", "front": "Phase sorting traps \u2014 what goes where?", "back": "Discovery: business case, ROI, current/future state. Initiation: charter, RAM, RACI, communication channels, kickoff. Planning: project schedule, WBS, budget, scope statement, units of work. Trap: scope statement = PLANNING, not initiation. RAM/RACI = INITIATION, not planning.", "flagged": false}];
+
+const LS_KEY = 'pplus_flags';
+
+// Load persisted flags from localStorage
+function loadFlags() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY));
+    if (saved) {
+      const map = {};
+      saved.forEach(f => map[f] = true);
+      CARDS.forEach(c => { c.flagged = !!map[c.front]; });
+    }
+  } catch(e) {}
+}
+
+function saveFlags() {
+  const flagged = CARDS.filter(c => c.flagged).map(c => c.front);
+  localStorage.setItem(LS_KEY, JSON.stringify(flagged));
+}
+
+loadFlags();
+
+// --- State ---
+let deck = [];
+let idx = 0;
+let flipped = false;
+let correct = 0;
+let wrong = [];
+
+// --- Screens ---
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// --- Setup ---
+let currentSelected = new Set();
+
+function buildSetup() {
+  const cats = [...new Set(CARDS.map(c => c.category))].sort();
+  currentSelected = new Set();
+  const list = document.getElementById('catList');
+
+  function render() {
+    list.innerHTML = '';
+    const allLi = document.createElement('li');
+    allLi.className = currentSelected.size === cats.length ? 'selected' : '';
+    const totalFlagged = CARDS.filter(c => c.flagged).length;
+    allLi.innerHTML = `<span class="name">All</span><span class="badge">${CARDS.length}${totalFlagged ? `<span class="flag"> ${totalFlagged} flagged</span>` : ''}</span>`;
+    allLi.onclick = () => { if (currentSelected.size === cats.length) { currentSelected.clear(); } else { cats.forEach(c => currentSelected.add(c)); } render(); };
+    list.appendChild(allLi);
+
+    cats.forEach(cat => {
+      const li = document.createElement('li');
+      li.className = currentSelected.has(cat) ? 'selected' : '';
+      const count = CARDS.filter(c => c.category === cat).length;
+      const flagged = CARDS.filter(c => c.category === cat && c.flagged).length;
+      li.innerHTML = `<span class="name">${cat}</span><span class="badge">${count}${flagged ? `<span class="flag"> ${flagged} flagged</span>` : ''}</span>`;
+      li.onclick = () => { currentSelected.has(cat) ? currentSelected.delete(cat) : currentSelected.add(cat); render(); };
+      list.appendChild(li);
+    });
+
+    buildModeButtons();
+  }
+
+  render();
+}
+
+function buildModeButtons() {
+  const section = document.getElementById('modeSection');
+  const hasCats = currentSelected.size > 0;
+  const pool = hasCats ? CARDS.filter(c => currentSelected.has(c.category)) : CARDS;
+  const flagged = pool.filter(c => c.flagged);
+  const allFlagged = CARDS.filter(c => c.flagged);
+
+  section.innerHTML = '';
+
+  if (hasCats) {
+    const btnAll = document.createElement('button');
+    btnAll.className = 'mode-btn primary';
+    btnAll.textContent = `Study Selected (${pool.length})`;
+    btnAll.onclick = () => launchQuiz('all');
+    section.appendChild(btnAll);
+  }
+
+  const btnFlagged = document.createElement('button');
+  btnFlagged.className = 'mode-btn';
+  btnFlagged.textContent = `Flagged Only (${allFlagged.length})`;
+  if (allFlagged.length) {
+    btnFlagged.style.cssText = 'border-color:#f59e0b;color:#f59e0b';
+    btnFlagged.onclick = () => launchFlagged();
+  } else {
+    btnFlagged.disabled = true;
+    btnFlagged.style.opacity = '0.35';
+  }
+  section.appendChild(btnFlagged);
+
+  if (allFlagged.length) {
+    const btnClear = document.createElement('button');
+    btnClear.className = 'mode-btn danger';
+    btnClear.textContent = 'Clear All Flags';
+    btnClear.onclick = () => { CARDS.forEach(c => c.flagged = false); saveFlags(); buildSetup(); };
+    section.appendChild(btnClear);
+  }
+}
+
+function launchFlagged() {
+  let pool = CARDS.filter(c => c.flagged);
+  if (!pool.length) return;
+  deck = document.getElementById('chkShuffle').checked ? shuffle([...pool]) : [...pool];
+  idx = 0; correct = 0; wrong = []; flipped = false;
+  show('quiz');
+  renderCard();
+}
+
+function launchQuiz() {
+  let pool = currentSelected.size > 0 ? CARDS.filter(c => currentSelected.has(c.category)) : CARDS;
+  if (!pool.length) return;
+
+  deck = document.getElementById('chkShuffle').checked ? shuffle([...pool]) : [...pool];
+  idx = 0; correct = 0; wrong = []; flipped = false;
+  show('quiz');
+  renderCard();
+};
+
+// --- Quiz ---
+function renderCard() {
+  const card = deck[idx];
+  document.getElementById('counter').textContent = `${idx + 1} / ${deck.length}`;
+  document.getElementById('progressFill').style.width = `${((idx) / deck.length) * 100}%`;
+  document.getElementById('cardLabel').textContent = card.category;
+  document.getElementById('flagDot').textContent = card.flagged ? '\u2691' : '';
+  document.getElementById('cardText').textContent = card.front;
+  document.getElementById('card').className = 'card';
+  document.getElementById('hint').textContent = 'tap to flip';
+  document.getElementById('gradeRow').style.display = 'none';
+  flipped = false;
+}
+
+function flipCard() {
+  if (flipped) return;
+  flipped = true;
+  const card = deck[idx];
+  document.getElementById('cardText').textContent = card.back;
+  document.getElementById('card').className = 'card answer';
+  document.getElementById('hint').textContent = '';
+  document.getElementById('gradeRow').style.display = 'flex';
+}
+
+function grade(gotIt) {
+  const card = deck[idx];
+  if (gotIt) {
+    correct++;
+    card.flagged = false;
+  } else {
+    wrong.push(card);
+    card.flagged = true;
+  }
+  saveFlags();
+  idx++;
+  if (idx >= deck.length) { showResults(); return; }
+  renderCard();
+}
+
+document.getElementById('card').addEventListener('click', flipCard);
+document.getElementById('btnWrong').addEventListener('click', () => grade(false));
+document.getElementById('btnRight').addEventListener('click', () => grade(true));
+document.getElementById('btnQuit').addEventListener('click', () => showResults());
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  const quizActive = document.getElementById('quiz').classList.contains('active');
+  if (!quizActive) return;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!flipped) flipCard(); }
+  if (flipped && (e.key === 'n' || e.key === 'ArrowLeft')) grade(false);
+  if (flipped && (e.key === 'y' || e.key === 'ArrowRight')) grade(true);
+});
+
+// --- Results ---
+function showResults() {
+  show('results');
+  const pct = deck.length ? Math.round((correct / deck.length) * 100) : 0;
+  document.getElementById('scoreText').innerHTML = `${correct}/${deck.length}<span class="label">${pct}%</span>`;
+
+  let html = '';
+  if (wrong.length) {
+    html += '<h2>Missed (now flagged)</h2><ul class="missed-list">';
+    wrong.forEach(c => { html += `<li>${c.front}</li>`; });
+    html += '</ul>';
+  }
+  document.getElementById('missedSection').innerHTML = html;
+}
+
+document.getElementById('btnRestart').addEventListener('click', () => { show('setup'); buildSetup(); });
+
+// --- Util ---
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+
+// Init
+buildSetup();
+</script>
+</body>
+</html>
